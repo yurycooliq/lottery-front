@@ -1,14 +1,106 @@
-# Vuetify (Default)
+# Lottery Frontend
+
+A simple decentralized application (dApp) that allows users to buy lottery tickets with USDT and lets the contract owner draw a random winner using Chainlink VRF.  The UI is built with **Vue 3**, **Vite** and **Vuetify 3**, with on-chain interaction powered by **wagmi**, **viem**, and **RainbowKit-Vue**.
+
+View the [demo](https://lottery-front.netlify.app/).
+
+---
+
+## ✨ Tech Stack
+
+| Category | Package |
+| -------- | ------- |
+| Framework / Build | [Vue 3](https://vuejs.org/) + [Vite](https://vitejs.dev/) |
+| UI | [Vuetify 3](https://vuetifyjs.com/) |
+| State | [Pinia](https://pinia.vuejs.org/) |
+| Blockchain | [wagmi](https://wagmi.sh/), [viem](https://viem.sh/), [RainbowKit-Vue](https://rainbowkit.vue-aquamana.dev/) |
+| Data-fetching | [@tanstack/vue-query](https://tanstack.com/query/latest/docs/framework/vue/overview) |
+| Tooling | TypeScript, ESLint, Prettier |
+
+---
+
+## 🚀 Features
+
+1. **Buy Tickets** – Users can purchase a ticket with USDT (price set in `.env`).  Approval/allowance is handled automatically.
+2. **Participants List** – See who has already bought tickets (addresses are anonymised to `You` for the current wallet).
+3. **Draw Winner (Owner-only)** – When 5 tickets are sold, the owner can trigger `drawWinner()`.  The UI stays in a _waiting_ state until the `WinnerPaid` event arrives.
+4. **Real-time Events** – UI updates instantly on `TicketBought` and `WinnerPaid` contract events.
+5. **Snackbar / Alerts** – Friendly toast notifications and alerts guide the user through each action.
+
+---
+
+## 🛠️ Prerequisites
+
+* **Node ≥18**  (supports `npm`, `yarn`, `pnpm`, or `bun`)
+* A browser wallet (MetaMask, Rabby, etc.) connected to **Sepolia** testnet.
+* Contract addresses deployed on Sepolia.
+
+---
+
+## 📦 Installation
+
+```bash
+# clone repository
+$ git clone https://github.com/your-org/lottery-front.git
+$ cd lottery-front
+
+# install deps (choose your package manager)
+$ pnpm install # or yarn / npm install
+```
+
+---
+
+## 🔧 Configuration
+
+Create `.env.local` (ignored by git) or edit `.env` with the following keys:
+
+```env
+# Contract addresses
+VITE_LOTTERY_CONTRACT_ADDRESS=0x...
+VITE_USDT_CONTRACT_ADDRESS=0x...
+
+# Ticket price in USDT smallest units (e.g. 1000000 = 1 USDT for 6-decimals)
+VITE_LOTTERY_TICKET_PRICE=1000000
+```
+
+---
+
+## 🏗️ Running Locally
+
+```bash
+pnpm dev  # vite dev server at http://localhost:5173
+```
+
+The app automatically connects to the wallet if authorised.  Make sure your wallet is on **Sepolia**.
+
+---
+
+## 🏄‍♂️ Production Build
+
+```bash
+pnpm build   # outputs to /dist
+pnpm preview # locally preview production build
+```
+
+---
+
+## 📚 Scripts
+
+| Command | Description |
+| ------- | ----------- |
+| `dev` | Start dev server with HMR |
+| `build` | Type-check &amp; build for production |
+| `type-check` | Run `vue-tsc` for TS type checks |
+| `lint` | Run ESLint |
+
+---
+
+## ⚖️ License
+
+MIT © 2025 Yuri Cooliq
+
 
 This is the official scaffolding tool for Vuetify, designed to give you a head start in building your new Vuetify application. It sets up a base template with all the necessary configurations and standard directory structure, enabling you to begin development without the hassle of setting up the project from scratch.
-
-## ❗️ Important Links
-
-- 📄 [Docs](https://vuetifyjs.com/)
-- 🚨 [Issues](https://issues.vuetifyjs.com/)
-- 🏬 [Store](https://store.vuetifyjs.com/)
-- 🎮 [Playground](https://play.vuetifyjs.com/)
-- 💬 [Discord](https://community.vuetifyjs.com)
 
 ## 💿 Install
 
@@ -63,19 +155,5 @@ yarn build
 
 Once the build process is completed, your application will be ready for deployment in a production environment.
 
-## 💪 Support Vuetify Development
-
-This project is built with [Vuetify](https://vuetifyjs.com/en/), a UI Library with a comprehensive collection of Vue components. Vuetify is an MIT licensed Open Source project that has been made possible due to the generous contributions by our [sponsors and backers](https://vuetifyjs.com/introduction/sponsors-and-backers/). If you are interested in supporting this project, please consider:
-
-- [Requesting Enterprise Support](https://support.vuetifyjs.com/)
-- [Sponsoring John on Github](https://github.com/users/johnleider/sponsorship)
-- [Sponsoring Kael on Github](https://github.com/users/kaelwd/sponsorship)
-- [Supporting the team on Open Collective](https://opencollective.com/vuetify)
-- [Becoming a sponsor on Patreon](https://www.patreon.com/vuetify)
-- [Becoming a subscriber on Tidelift](https://tidelift.com/subscription/npm/vuetify)
-- [Making a one-time donation with Paypal](https://paypal.me/vuetify)
-
 ## 📑 License
 [MIT](http://opensource.org/licenses/MIT)
-
-Copyright (c) 2016-present Vuetify, LLC

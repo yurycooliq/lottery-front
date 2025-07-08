@@ -11,6 +11,7 @@ export const useLotteryStore = defineStore('lottery', () => {
   const players = ref<string[]>([])
   const owner = ref<string | null>(null)
   const drawLoading = ref(false)
+  const awaitingRandom = ref(false)
   const lastTicketBuyer = ref<string | null>(null)
   const lastWinner = ref<{ address: string, prize: bigint } | null>(null)
 
@@ -62,6 +63,7 @@ export const useLotteryStore = defineStore('lottery', () => {
       })
       await waitForTransactionReceipt(config, { hash })
       drawLoading.value = false
+      awaitingRandom.value = true
     } catch (error) {
       console.error('drawWinner', error)
       drawLoading.value = false
@@ -90,11 +92,9 @@ export const useLotteryStore = defineStore('lottery', () => {
       eventName: 'TicketBought',
       onLogs: logs => {
         for (const log of logs) {
-          const { user } = log.args as { user: string, index: bigint }
-          // refresh full players list
+          const { player } = log.args as { player: string, index: bigint }
           fetchPlayers()
-          lastTicketBuyer.value = user
-          console.log('TicketBought', user)
+          lastTicketBuyer.value = player
         }
       },
     })
@@ -106,9 +106,10 @@ export const useLotteryStore = defineStore('lottery', () => {
       eventName: 'WinnerPaid',
       onLogs: logs => {
         for (const log of logs) {
-          const { user, prizeAmount } = log.args as { user: string, prizeAmount: bigint }
-          lastWinner.value = { address: user, prize: prizeAmount }
+          const { winner, prize } = log.args as { winner: string, prize: bigint }
+          lastWinner.value = { address: winner, prize }
           players.value = []
+          awaitingRandom.value = false
         }
       },
     })
@@ -117,5 +118,5 @@ export const useLotteryStore = defineStore('lottery', () => {
   // call once in setup
   setupEventListeners()
 
-  return { players, displayPlayers, lastWinner, lastTicketBuyer, owner, isOwner, drawLoading, fetchOwner, fetchPlayers, buyTicket, drawWinner, buyLoading }
+  return { players, displayPlayers, lastWinner, lastTicketBuyer, owner, isOwner, drawLoading, awaitingRandom, fetchOwner, fetchPlayers, buyTicket, drawWinner, buyLoading }
 })

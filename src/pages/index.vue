@@ -19,17 +19,44 @@
       </v-list>
     </v-card-text>
     <v-card-actions>
-      <v-btn color="secondary" :loading="mintPending" @click="mint">Mint 100 USDT</v-btn>
+      <v-btn
+        color="secondary"
+        :loading="mintPending"
+        @click="mint"
+      >Mint 100 USDT</v-btn>
       <v-spacer />
       <template v-if="playersDisplay.length < 5">
-        <v-btn color="primary" :disabled="!canBuy || buyPending" :loading="buyPending" @click="buy">Buy ticket</v-btn>
+        <v-btn
+          color="primary"
+          :disabled="!canBuy || buyPending"
+          :loading="buyPending"
+          @click="buy"
+        >Buy ticket</v-btn>
       </template>
       <template v-else>
-        <v-btn color="primary" :disabled="!isOwner || drawPending" :loading="drawPending" @click="draw">Draw winner</v-btn>
+        <v-btn
+          color="primary"
+          :disabled="!isOwner || drawPending || awaitingRandom"
+          :loading="drawPending"
+          @click="draw"
+        >Draw winner</v-btn>
       </template>
     </v-card-actions>
   </v-card>
-  <v-snackbar v-model="snackbar" :color="snackbarColor" location="top" timeout="4000">
+  <v-alert
+    v-if="awaitingRandom"
+    class="mx-auto my-4"
+    max-width="400"
+    text="Getting a random number from ChainLink may take several blocks, please wait..."
+    title="Determining the Winner"
+    type="warning"
+  />
+  <v-snackbar
+    v-model="snackbar"
+    :color="snackbarColor"
+    location="top"
+    timeout="4000"
+  >
     {{ snackbarText }}
   </v-snackbar>
 </template>
@@ -53,20 +80,41 @@
     lotteryStore.fetchPlayers()
     lotteryStore.fetchOwner()
   })
-  const { players, lastWinner, lastTicketBuyer, isOwner, drawLoading } = storeToRefs(lotteryStore)
+  const { players, lastWinner, lastTicketBuyer, isOwner, drawLoading }
+    = storeToRefs(lotteryStore)
 
   // snackbar when new ticket bought
   watch(lastTicketBuyer, buyer => {
     if (!buyer) return
-    const label = buyer.toLowerCase() === (wallet.address.value ?? '').toLowerCase() ? 'You' : buyer
+    const label
+      = buyer.toLowerCase() === (wallet.address.value ?? '').toLowerCase()
+        ? 'You'
+        : buyer
     snackbarText.value = `Ticket bought: ${label}`
     snackbarColor.value = 'success'
     snackbar.value = true
   })
+  // snackbar when winner paid
+  watch(lastWinner, w => {
+    if (!w) return
+    const label
+      = w.address.toLowerCase() === (wallet.address.value ?? '').toLowerCase()
+        ? 'You'
+        : w.address
+    snackbarText.value = `Winner: ${label}. Prize: ${
+      Number(w.prize) / 1_000_000
+    } USDT`
+    snackbarColor.value = 'success'
+    snackbar.value = true
+  })
+
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
   const playersDisplay = computed(() =>
     players.value
-      .filter((a): a is string => typeof a === 'string' && a.toLowerCase() !== ZERO_ADDRESS)
+      .filter(
+        (a): a is string =>
+          typeof a === 'string' && a.toLowerCase() !== ZERO_ADDRESS,
+      )
       .map(a =>
         a.toLowerCase() === (wallet.address.value ?? '').toLowerCase() ? 'You' : a,
       ),
@@ -80,19 +128,24 @@
   const snackbarColor = ref<'success' | 'error'>('success')
 
   const { mintLoading } = storeToRefs(tokenStore)
-  const { buyLoading } = storeToRefs(lotteryStore)
+  const { buyLoading, awaitingRandom } = storeToRefs(lotteryStore)
 
   const mintPending = mintLoading
   const buyPending = buyLoading
   const drawPending = drawLoading
 
-  const LOTTERY_ADDRESS = import.meta.env.VITE_LOTTERY_CONTRACT_ADDRESS as `0x${string}`
+  const LOTTERY_ADDRESS = import.meta.env
+    .VITE_LOTTERY_CONTRACT_ADDRESS as `0x${string}`
 
   const buy = async () => {
     try {
       // ensure sufficient allowance via token store action
       if (wallet.address.value) {
-        await tokenStore.ensureAllowance(wallet.address.value as `0x${string}`, LOTTERY_ADDRESS, ticketPrice)
+        await tokenStore.ensureAllowance(
+          wallet.address.value as `0x${string}`,
+          LOTTERY_ADDRESS,
+          ticketPrice,
+        )
       }
 
       // Purchase ticket
