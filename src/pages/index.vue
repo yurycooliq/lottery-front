@@ -131,7 +131,8 @@
   const { buyLoading, awaitingRandom } = storeToRefs(lotteryStore)
 
   const mintPending = mintLoading
-  const buyPending = buyLoading
+  const localBuyLoading = ref(false)
+  const buyPending = computed(() => buyLoading.value || localBuyLoading.value)
   const drawPending = drawLoading
 
   const LOTTERY_ADDRESS = import.meta.env
@@ -139,6 +140,7 @@
 
   const buy = async () => {
     try {
+      localBuyLoading.value = true
       // ensure sufficient allowance via token store action
       if (wallet.address.value) {
         await tokenStore.ensureAllowance(
@@ -158,6 +160,8 @@
       snackbarText.value = 'Buy failed: ' + (error as Error).message
       snackbarColor.value = 'error'
       snackbar.value = true
+    } finally {
+      localBuyLoading.value = false
     }
   }
 
