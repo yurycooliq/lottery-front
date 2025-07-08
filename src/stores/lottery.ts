@@ -3,14 +3,22 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import lotteryAbi from '@/abis/lottery.abi'
 import { config } from '@/config'
+import { useWalletStore } from '@/stores/wallet'
 
 const LOTTERY_ADDRESS = import.meta.env.VITE_LOTTERY_CONTRACT_ADDRESS as `0x${string}`
 
 export const useLotteryStore = defineStore('lottery', () => {
   const players = ref<string[]>([])
+  const owner = ref<string | null>(null)
+  const drawLoading = ref(false)
+  const lastTicketBuyer = ref<string | null>(null)
   const lastWinner = ref<{ address: string, prize: bigint } | null>(null)
 
+  const walletStore = useWalletStore()
+  const { address } = storeToRefs(walletStore)
+
   const displayPlayers = computed(() => players.value.map(a => a.toLowerCase()))
+  const isOwner = computed(() => (address.value ?? '').toLowerCase() === (owner.value ?? '').toLowerCase())
 
   const buyLoading = ref(false)
 
@@ -31,14 +39,44 @@ export const useLotteryStore = defineStore('lottery', () => {
     }
   }
 
+  async function fetchOwner () {
+    try {
+      const result = (await readContract(config, {
+        address: LOTTERY_ADDRESS,
+        abi: lotteryAbi,
+        functionName: 'owner',
+      })) as string
+      owner.value = result
+    } catch (error) {
+      console.error('fetchOwner', error)
+    }
+  }
+
+  async function drawWinner () {
+    try {
+      drawLoading.value = true
+      const hash = await writeContract(config, {
+        address: LOTTERY_ADDRESS,
+        abi: lotteryAbi,
+        functionName: 'drawWinner',
+      })
+      await waitForTransactionReceipt(config, { hash })
+      drawLoading.value = false
+    } catch (error) {
+      console.error('drawWinner', error)
+      drawLoading.value = false
+      throw error
+    }
+  }
+
   async function fetchPlayers () {
     try {
       const result = (await readContract(config, {
         address: LOTTERY_ADDRESS,
         abi: lotteryAbi,
         functionName: 'getPlayers',
-      })) as readonly string[]
-      players.value = result.slice(0, 5)
+      })) as string[]
+      players.value = result
     } catch (error) {
       console.error('fetchPlayers', error)
     }
@@ -52,8 +90,11 @@ export const useLotteryStore = defineStore('lottery', () => {
       eventName: 'TicketBought',
       onLogs: logs => {
         for (const log of logs) {
-          const { user, index } = log.args as { user: string, index: bigint }
-          players.value[Number(index)] = user
+          const { user } = log.args as { user: string, index: bigint }
+          // refresh full players list
+          fetchPlayers()
+          lastTicketBuyer.value = user
+          console.log('TicketBought', user)
         }
       },
     })
@@ -76,5 +117,5 @@ export const useLotteryStore = defineStore('lottery', () => {
   // call once in setup
   setupEventListeners()
 
-  return { players, displayPlayers, lastWinner, fetchPlayers, buyTicket, buyLoading }
+  return { players, displayPlayers, lastWinner, lastTicketBuyer, owner, isOwner, drawLoading, fetchOwner, fetchPlayers, buyTicket, drawWinner, buyLoading }
 })

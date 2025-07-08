@@ -6,15 +6,27 @@
     <v-card-title>Lottery</v-card-title>
     <v-card-text>
       <v-list density="compact">
-        <v-list-item v-for="(addr, i) in playersDisplay" :key="i">
-          <v-list-item-title>{{ addr }}</v-list-item-title>
-        </v-list-item>
+        <template v-if="playersDisplay.length > 0">
+          <v-list-item v-for="(addr, i) in playersDisplay" :key="i">
+            <v-list-item-title>{{ addr }}</v-list-item-title>
+          </v-list-item>
+        </template>
+        <template v-else>
+          <v-list-item>
+            <v-list-item-title>No participants</v-list-item-title>
+          </v-list-item>
+        </template>
       </v-list>
     </v-card-text>
     <v-card-actions>
       <v-btn color="secondary" :loading="mintPending" @click="mint">Mint 100 USDT</v-btn>
       <v-spacer />
-      <v-btn color="primary" :disabled="!canBuy || buyPending" :loading="buyPending" @click="buy">Buy ticket</v-btn>
+      <template v-if="playersDisplay.length < 5">
+        <v-btn color="primary" :disabled="!canBuy || buyPending" :loading="buyPending" @click="buy">Buy ticket</v-btn>
+      </template>
+      <template v-else>
+        <v-btn color="primary" :disabled="!isOwner || drawPending" :loading="drawPending" @click="draw">Draw winner</v-btn>
+      </template>
     </v-card-actions>
   </v-card>
   <v-snackbar v-model="snackbar" :color="snackbarColor" location="top" timeout="4000">
@@ -24,7 +36,7 @@
 
 <script lang="ts" setup>
   import { storeToRefs } from 'pinia'
-  import { computed, ref } from 'vue'
+  import { computed, onMounted, ref, watch } from 'vue'
   import { useLotteryStore } from '@/stores/lottery'
   import { useTokenStore } from '@/stores/token'
   import { useWalletStore } from '@/stores/wallet'
@@ -36,11 +48,28 @@
   const { balance } = storeToRefs(tokenStore)
 
   const lotteryStore = useLotteryStore()
-  const { players, lastWinner } = storeToRefs(lotteryStore)
+
+  onMounted(() => {
+    lotteryStore.fetchPlayers()
+    lotteryStore.fetchOwner()
+  })
+  const { players, lastWinner, lastTicketBuyer, isOwner, drawLoading } = storeToRefs(lotteryStore)
+
+  // snackbar when new ticket bought
+  watch(lastTicketBuyer, buyer => {
+    if (!buyer) return
+    const label = buyer.toLowerCase() === (wallet.address.value ?? '').toLowerCase() ? 'You' : buyer
+    snackbarText.value = `Ticket bought: ${label}`
+    snackbarColor.value = 'success'
+    snackbar.value = true
+  })
+  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
   const playersDisplay = computed(() =>
-    players.value.map(a =>
-      a.toLowerCase() === (wallet.address.value ?? '').toLowerCase() ? 'You' : a,
-    ),
+    players.value
+      .filter((a): a is string => typeof a === 'string' && a.toLowerCase() !== ZERO_ADDRESS)
+      .map(a =>
+        a.toLowerCase() === (wallet.address.value ?? '').toLowerCase() ? 'You' : a,
+      ),
   )
 
   const ticketPrice = BigInt(import.meta.env.VITE_LOTTERY_TICKET_PRICE)
@@ -55,6 +84,7 @@
 
   const mintPending = mintLoading
   const buyPending = buyLoading
+  const drawPending = drawLoading
 
   const LOTTERY_ADDRESS = import.meta.env.VITE_LOTTERY_CONTRACT_ADDRESS as `0x${string}`
 
@@ -73,6 +103,20 @@
     } catch (error) {
       console.error(error as Error)
       snackbarText.value = 'Buy failed: ' + (error as Error).message
+      snackbarColor.value = 'error'
+      snackbar.value = true
+    }
+  }
+
+  const draw = async () => {
+    try {
+      await lotteryStore.drawWinner()
+      snackbarText.value = 'Waiting for random number from Chainlink'
+      snackbarColor.value = 'success'
+      snackbar.value = true
+    } catch (error) {
+      console.error(error as Error)
+      snackbarText.value = 'Draw failed: ' + (error as Error).message
       snackbarColor.value = 'error'
       snackbar.value = true
     }
